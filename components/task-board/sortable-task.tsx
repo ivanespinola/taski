@@ -6,9 +6,14 @@ import { CSS } from "@dnd-kit/utilities"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { FilePenLineIcon } from "@/components/ui/file-pen-line"
-import { Task } from "../../lib/types/types"
+import { Task } from "@/lib/types/types"
 
-export function SortableTask({ task }: { task: Task }) {
+interface SortableTaskProps {
+  task: Task
+  id?: string
+}
+
+export function SortableTask({ task, id }: SortableTaskProps) {
   const {
     attributes,
     listeners,
@@ -16,13 +21,17 @@ export function SortableTask({ task }: { task: Task }) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id })
+  } = useSortable({
+    id: id || task.id.toString(),
+    data: {
+      taskId: task.id,
+      columnId: task.status,
+    },
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 1 : 0,
-    position: "relative" as const,
     opacity: isDragging ? 0.5 : 1,
   }
 
@@ -30,17 +39,17 @@ export function SortableTask({ task }: { task: Task }) {
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-3 cursor-grab active:cursor-grabbing"
+      className="p-4 cursor-grab active:cursor-grabbing"
       {...attributes}
       {...listeners}
     >
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="flex-1">
           <h4 className="font-medium">{task.title}</h4>
           <p className="text-sm text-muted-foreground">{task.description}</p>
         </div>
-        <Button variant="ghost" size="icon" className="cursor-pointer h-8 w-8">
-          <FilePenLineIcon size={16} />
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+          <FilePenLineIcon className="h-4 w-4" />
         </Button>
       </div>
     </Card>

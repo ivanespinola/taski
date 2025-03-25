@@ -1,37 +1,44 @@
 "use client"
 
-import { useSortable } from "@dnd-kit/sortable"
+import { useDroppable } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { Column as ColumnType } from "@/lib/types/types"
+import { SortableTask } from "./sortable-task"
+import { TaskDialog } from "./task-dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { IconPlus } from "@tabler/icons-react"
 
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { SortableTask } from "./sortable-task"
-import { Column as ColumnType } from "../../lib/types/types"
+interface ColumnProps {
+  column: ColumnType
+}
 
-export function Column({ column }: { column: ColumnType }) {
-  const { setNodeRef } = useSortable({ id: column.id })
+export function Column({ column }: ColumnProps) {
+  const { setNodeRef } = useDroppable({
+    id: column.id,
+    data: {
+      columnId: column.id,
+    },
+  })
 
   return (
-    <div ref={setNodeRef} className="flex-1">
-      <Card className="p-4 h-full">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">{column.title}</h3>
-          <Button variant="ghost" size="icon" className="cursor-pointer">
-            <IconPlus className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex flex-col gap-2 min-h-[400px]">
-          <SortableContext
-            items={column.tasks.map((task) => task.id)}
-            strategy={verticalListSortingStrategy}
-          >
+    <Card className="w-80">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{column.title}</CardTitle>
+        <TaskDialog columnId={column.id} />
+      </CardHeader>
+      <CardContent ref={setNodeRef} className="min-h-[200px]">
+        <SortableContext
+          items={column.tasks.map((task) => task.id.toString())}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-2">
             {column.tasks.map((task) => (
               <SortableTask key={task.id} task={task} />
             ))}
-          </SortableContext>
-        </div>
-      </Card>
-    </div>
+          </div>
+        </SortableContext>
+      </CardContent>
+    </Card>
   )
 }

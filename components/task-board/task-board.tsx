@@ -3,87 +3,104 @@
 import * as React from "react"
 import {
   DndContext,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
   DragOverlay,
-  pointerWithin,
+  PointerSensor,
+  MouseSensor,
+  TouchSensor,
 } from "@dnd-kit/core"
-
+import { arrayMove } from "@dnd-kit/sortable"
+import { useState, useEffect } from "react"
 import { Column } from "./column"
-import { DraggingTask } from "./dragging-task"
-import { initialColumns } from "../../app/data"
-import { Task } from "../../lib/types/types"
+import { SortableTask } from "./sortable-task"
+import { useTaskStore } from "@/lib/store/store"
 
 export function TaskBoard() {
-  const [mounted, setMounted] = React.useState(false)
-  const [columns, setColumns] = React.useState(initialColumns)
-  const [activeTask, setActiveTask] = React.useState<Task | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const columns = useTaskStore((state) => state.columns)
+  const reorderTasks = useTaskStore((state) => state.reorderTasks)
+  const moveTask = useTaskStore((state) => state.moveTask)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+        delay: 0,
+      },
+    }),
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 5,
+        delay: 0,
+        tolerance: 8,
       },
-    }),
-    useSensor(KeyboardSensor, {})
+    })
   )
 
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
-
   function handleDragStart(event: DragStartEvent) {
-    const { active } = event
-    const task = columns
-      .flatMap((col) => col.tasks)
-      .find((task) => task.id === active.id)
-    if (task) {
-      setActiveTask(task)
-    }
+    console.log("Drag start:", event.active.id)
+    setActiveId(event.active.id as string)
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    console.log("Drag end:", { active: active.id, over: over?.id })
+
     if (!over) return
 
-    const activeTask = columns
-      .flatMap((col) => col.tasks)
-      .find((task) => task.id === active.id)
+    const activeTask = active.data.current as {
+      taskId: number
+      columnId: string
+    }
+    const overColumn = over.data.current as { columnId: string }
 
-    const overColumn = columns.find((col) => col.id === over.id)
+    console.log("Task data:", { activeTask, overColumn })
 
     if (!activeTask || !overColumn) return
 
-    setColumns((columns) => {
-      // Remove task from current column
-      const newColumns = columns.map((col) => ({
-        ...col,
-        tasks: col.tasks.filter((task) => task.id !== activeTask.id),
-      }))
+    // Si la tarea se mueve a una columna diferente
+    if (activeTask.columnId !== overColumn.columnId) {
+      console.log("Moving task to different column")
+      moveTask(activeTask.taskId, activeTask.columnId, overColumn.columnId)
+      return
+    }
 
-      // Add task to new column
-      const targetColumn = newColumns.find((col) => col.id === overColumn.id)
-      if (targetColumn) {
-        targetColumn.tasks.push({
-          ...activeTask,
-          status: overColumn.id as Task["status"],
-        })
-      }
+    // Si la tarea se reordena dentro de la misma columna
+    const column = columns.find((col) => col.id === activeTask.columnId)
+    if (!column) return
 
-      return newColumns
-    })
-    setActiveTask(null)
+    const oldIndex = column.tasks.findIndex(
+      (task) => task.id === activeTask.taskId
+    )
+    const newIndex = column.tasks.findIndex(
+      (task) => task.id === Number(over.id)
+    )
+
+    if (oldIndex === -1 || newIndex === -1) return
+
+    console.log("Reordering tasks in same column")
+    const newTasks = arrayMove(column.tasks, oldIndex, newIndex)
+    reorderTasks(
+      activeTask.columnId,
+      newTasks.map((task) => task.id)
+    )
+  }
+
+  function handleDragCancel() {
+    console.log("Drag cancelled")
+    setActiveId(null)
   }
 
   if (!mounted) {
@@ -93,17 +110,27 @@ export function TaskBoard() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex gap-4 p-4">
         {columns.map((column) => (
           <Column key={column.id} column={column} />
         ))}
       </div>
+
       <DragOverlay>
-        {activeTask ? <DraggingTask task={activeTask} /> : null}
+        {activeId ? (
+          <SortableTask
+            id={activeId}
+            task={
+              columns
+                .flatMap((col) => col.tasks)
+                .find((task) => task.id === Number(activeId))!
+            }
+          />
+        ) : null}
       </DragOverlay>
     </DndContext>
   )

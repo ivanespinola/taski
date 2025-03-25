@@ -1,9 +1,13 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { Task } from "../../lib/types/types"
+import { Task } from "@/lib/types/types"
 
-export function DraggingTask({ task }: { task: Task }) {
+interface DraggingTaskProps {
+  task: Task
+}
+
+export function DraggingTask({ task }: DraggingTaskProps) {
   return (
     <Card className="p-3 shadow-lg">
       <div>
