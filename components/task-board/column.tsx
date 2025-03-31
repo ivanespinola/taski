@@ -6,8 +6,6 @@ import { Column as ColumnType } from "@/lib/types/types"
 import { SortableTask } from "./sortable-task"
 import { TaskDialog } from "./task-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { IconPlus } from "@tabler/icons-react"
 
 interface ColumnProps {
   column: ColumnType
@@ -21,6 +19,7 @@ export function Column({ column }: ColumnProps) {
     },
   })
 
+  console.log("id", column.id)
   return (
     <Card className="w-80">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -29,7 +28,7 @@ export function Column({ column }: ColumnProps) {
       </CardHeader>
       <CardContent ref={setNodeRef} className="min-h-[200px]">
         <SortableContext
-          items={column.tasks.map((task) => task.id.toString())}
+          items={column.tasks.map((task) => task.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-2">

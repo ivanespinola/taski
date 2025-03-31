@@ -14,51 +14,85 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useTaskStore } from "@/lib/store/store"
-import { IconPlus } from "@tabler/icons-react"
-import { useState } from "react"
+import { IconPlus, IconTrash } from "@tabler/icons-react"
+import { useEffect, useState } from "react"
+import { Task } from "@/lib/types/types"
+import { FilePenLineIcon } from "@/components/ui/file-pen-line"
+import { on } from "events"
 
 interface TaskDialogProps {
   columnId?: string
   trigger?: React.ReactNode
   isSidebar?: boolean
   children?: React.ReactNode
+  editingTask?: Task
+  open?: boolean
+  onClose?: () => void
 }
 
 export function TaskDialog({
   columnId = "todo",
   trigger,
-  isSidebar = false,
   children,
+  editingTask,
+  open,
+  onClose,
 }: TaskDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(open || false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+
   const addTask = useTaskStore((state) => state.addTask)
-  const addSidebarTask = useTaskStore((state) => state.addSidebarTask)
+  const updateTask = useTaskStore((state) => state.updateTask)
+  const deleteTask = useTaskStore((state) => state.deleteTask)
+
+  useEffect(() => {
+    if (editingTask) {
+      setTitle(editingTask.title)
+      setDescription(editingTask.description)
+    } else {
+      setTitle("")
+      setDescription("")
+    }
+  }, [editingTask])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!title.trim()) return
 
-    const task = {
-      title: title.trim(),
-      description: description.trim(),
-      status: columnId as "todo" | "in-progress" | "in-review" | "done",
-    }
-
-    if (isSidebar) {
-      addSidebarTask(task)
+    if (editingTask) {
+      updateTask(editingTask.id, {
+        title: title.trim(),
+        description: description.trim(),
+      })
     } else {
-      addTask(columnId, task)
+      addTask(columnId, {
+        title: title.trim(),
+        description: description.trim(),
+        status: columnId as "todo" | "in-progress" | "in-review" | "done",
+      })
     }
 
-    setTitle("")
-    setDescription("")
-    setOpen(false)
+    handleClose()
+  }
+
+  const handleDelete = () => {
+    if (editingTask) {
+      deleteTask(editingTask.id)
+      handleClose()
+    }
+  }
+  useEffect(() => {
+    setInternalOpen(open || false)
+  }, [open])
+
+  const handleClose = () => {
+    setInternalOpen(false)
+    onClose?.()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={internalOpen} onOpenChange={setInternalOpen}>
       <DialogTrigger asChild>
         {trigger || children || (
           <Button
@@ -70,12 +104,17 @@ export function TaskDialog({
           </Button>
         )}
       </DialogTrigger>
+
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create new task</DialogTitle>
+            <DialogTitle>
+              {editingTask ? "Edit Task" : "Create New Task"}
+            </DialogTitle>
             <DialogDescription>
-              Add a new task to this column. Click save when you&apos;re done.
+              {editingTask
+                ? "Update the task details or delete it."
+                : "Add a new task to this column."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -98,10 +137,45 @@ export function TaskDialog({
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="submit" disabled={!title.trim()}>
-              Save
-            </Button>
+          <DialogFooter className="flex justify-between">
+            {editingTask ? (
+              <>
+                <Button
+                  className="cursor-pointer"
+                  type="submit"
+                  disabled={!title.trim()}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <IconTrash className="h-4 w-4" />
+                  Delete
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleClose}
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="cursor-pointer"
+                  type="submit"
+                  disabled={!title.trim()}
+                >
+                  Create
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

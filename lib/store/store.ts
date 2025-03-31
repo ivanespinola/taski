@@ -4,11 +4,12 @@ import { Column, Task } from "../types/types"
 
 interface TaskState {
   columns: Column[]
-  sidebarTasks: Task[]
   addTask: (columnId: string, task: Omit<Task, "id">) => void
-  addSidebarTask: (task: Omit<Task, "id">) => void
   updateTask: (taskId: number, updates: Partial<Task>) => void
   deleteTask: (taskId: number) => void
+  isOpen: boolean
+  openDialog: () => void
+  closeDialog: () => void
   moveTask: (
     taskId: number,
     sourceColumnId: string,
@@ -50,7 +51,6 @@ export const useTaskStore = create<TaskState>()(
           tasks: [],
         },
       ],
-      sidebarTasks: [],
 
       addTask: (columnId: string, task: Omit<Task, "id">) =>
         set((state) => {
@@ -71,17 +71,6 @@ export const useTaskStore = create<TaskState>()(
           }
         }),
 
-      addSidebarTask: (task: Omit<Task, "id">) =>
-        set((state) => {
-          const newTask = {
-            ...task,
-            id: Math.max(0, ...state.sidebarTasks.map((t) => t.id)) + 1,
-          }
-          return {
-            sidebarTasks: [...state.sidebarTasks, newTask],
-          }
-        }),
-
       updateTask: (taskId: number, updates: Partial<Task>) =>
         set((state) => ({
           columns: state.columns.map((col) => ({
@@ -90,9 +79,6 @@ export const useTaskStore = create<TaskState>()(
               task.id === taskId ? { ...task, ...updates } : task
             ),
           })),
-          sidebarTasks: state.sidebarTasks.map((task) =>
-            task.id === taskId ? { ...task, ...updates } : task
-          ),
         })),
 
       deleteTask: (taskId: number) =>
@@ -101,8 +87,11 @@ export const useTaskStore = create<TaskState>()(
             ...col,
             tasks: col.tasks.filter((task) => task.id !== taskId),
           })),
-          sidebarTasks: state.sidebarTasks.filter((task) => task.id !== taskId),
         })),
+
+      isOpen: false,
+      openDialog: () => set({ isOpen: true }),
+      closeDialog: () => set({ isOpen: false }),
 
       moveTask: (
         taskId: number,
@@ -145,20 +134,23 @@ export const useTaskStore = create<TaskState>()(
 
       reorderTasks: (columnId: string, taskIds: number[]) =>
         set((state) => ({
-          columns: state.columns.map((col) =>
-            col.id === columnId
-              ? {
-                  ...col,
-                  tasks: taskIds
-                    .map((id) => col.tasks.find((t) => t.id === id))
-                    .filter(Boolean) as Task[],
-                }
-              : col
-          ),
+          columns: state.columns.map((col) => {
+            if (col.id !== columnId) return col
+            const tasks = [...col.tasks]
+            const reorderedTasks = taskIds.map((id) =>
+              tasks.find((task) => task.id === id)
+            )
+            return {
+              ...col,
+              tasks: reorderedTasks.filter(
+                (task): task is Task => task !== undefined
+              ),
+            }
+          }),
         })),
     }),
     {
-      name: "task-storage",
+      name: "task-store",
     }
   )
 )
